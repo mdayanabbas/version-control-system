@@ -272,8 +272,8 @@ class AdvancedVersionControlSystem:
     def demonstrate_advanced_features(self):
         """Demonstrate comprehensive VCS features."""
         # Create users
-        alice = self.register_user("alice", "alice@example.com")
-        bob = self.register_user("bob", "bob@example.com")
+        alice = self.register_user("Abbas", "ayanabbas727@gmail.com")
+        bob = self.register_user("Aman", "amanabbas2996@gmail.com")
 
         # Create repository
         project_repo = self.create_repository(
@@ -327,4 +327,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
