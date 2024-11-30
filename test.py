@@ -6,7 +6,8 @@ vcs = AdvancedVersionControlSystem()
 
 # Register users
 alice = vcs.register_user("Abbas", "alice@example.com")
-bob = vcs.register_user("Aman", "bob@example.com")
+bob = vcs.register_user("Aman
+", "bob@example.com")
 
 # Create a repository
 repo = vcs.create_repository("sample_project", Path.cwd() / "sample_project")
