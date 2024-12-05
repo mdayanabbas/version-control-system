@@ -190,7 +190,8 @@ class CodeSyncRepository:
             'performance': 0.2,
             'best_practices': 0.1
         }
-        
+
+      
         severity = 0.0
         for category, issues in code_smells.items():
             severity += len(issues) * severity_map.get(category, 0.1)
