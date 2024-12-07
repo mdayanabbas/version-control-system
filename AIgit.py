@@ -168,6 +168,119 @@ class CodeReview:
         review.severity_score = data['severity_score']
         return review
 
+
+class CodeSyncRepository:
+    """Advanced repository management with AI-powered insights and persistence"""
+    
+    def __init__(self, name: str, path: str):
+        self.name = name
+        self.path = os.path.abspath(path)
+        self.reviews: List[CodeReview] = []
+        self.code_health_history: List[float] = []
+        
+        # Ensure repository directory exists
+        os.makedirs(self.path, exist_ok=True)
+        
+        # Create metadata directory for CodeSync
+        self.metadata_dir = os.path.join(self.path, '.codesync')
+        os.makedirs(self.metadata_dir, exist_ok=True)
+        
+        # Load existing reviews if any
+        self._load_reviews()
+    
+    def _load_reviews(self):
+        """Load existing reviews from metadata"""
+        reviews_path = os.path.join(self.metadata_dir, 'reviews.json')
+        if os.path.exists(reviews_path):
+            try:
+                with open(reviews_path, 'r') as f:
+                    review_data = json.load(f)
+                    self.reviews = [CodeReview.from_dict(review) for review in review_data]
+                    self.code_health_history = [review.severity_score for review in self.reviews]
+            except Exception as e:
+                print(f"Error loading reviews: {e}")
+    
+    def save_reviews(self):
+        """Save reviews to metadata"""
+        reviews_path = os.path.join(self.metadata_dir, 'reviews.json')
+        try:
+            with open(reviews_path, 'w') as f:
+                json.dump([review.to_dict() for review in self.reviews], f, indent=2)
+        except Exception as e:
+            print(f"Error saving reviews: {e}")
+    
+    def analyze_file(self, file_path: str) -> CodeReview:
+        """Perform comprehensive code analysis on a file"""
+        try:
+            with open(file_path, 'r') as f:
+                code_content = f.read()
+            
+            # Perform AI-powered analysis
+            code_smells = AICodeAnalyzer.detect_code_smells(code_content)
+            optimizations = AICodeAnalyzer.suggest_optimizations(code_content)
+            
+            # Calculate severity score
+            severity = self._calculate_severity(code_smells)
+            
+            # Create code review
+            review = CodeReview(
+                code_snippet=code_content,
+                file_path=file_path,
+                analysis_results=code_smells,
+                optimization_suggestions=optimizations,
+                severity_score=severity
+            )
+            
+            self.reviews.append(review)
+            self.code_health_history.append(severity)
+            
+            # Save reviews after each analysis
+            self.save_reviews()
+            
+            return review
+        
+        except Exception as e:
+            print(f"Error analyzing file {file_path}: {e}")
+            return None
+    
+    def _calculate_severity(self, code_smells: Dict[str, List[str]]) -> float:
+        """Calculate severity score based on detected issues"""
+        severity_map = {
+            'complexity': 0.4,
+            'security': 0.3,
+            'performance': 0.2,
+            'best_practices': 0.1
+        }
+
+        severity = 0.0
+        for category, issues in code_smells.items():
+            severity += len(issues) * severity_map.get(category, 0.1)
+        
+        return min(severity, 10.0)  # Cap at 10
+    
+    def generate_project_health_report(self) -> Dict[str, Any]:
+        """Generate comprehensive project health report"""
+        report = {
+            'total_reviews': len(self.reviews),
+            'average_severity': sum(self.code_health_history) / len(self.code_health_history) if self.code_health_history else 0,
+            'critical_files': [],
+            'optimization_opportunities': 0
+        }
+        
+        # Identify critical files
+        report['critical_files'] = [
+            review.file_path for review in self.reviews 
+            if review.severity_score > 5.0
+        ]
+        
+        # Count optimization opportunities
+        for review in self.reviews:
+            report['optimization_opportunities'] += sum(
+                len(suggestions) for suggestions in review.optimization_suggestions.values()
+            )
+        
+        return report
+
     def interactive_menu(self):
         """Enhanced interactive CLI for CodeSync"""
         while True:
