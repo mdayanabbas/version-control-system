@@ -168,7 +168,6 @@ class CodeReview:
         review.severity_score = data['severity_score']
         return review
 
-
 class CodeSyncRepository:
     """Advanced repository management with AI-powered insights and persistence"""
     
@@ -292,6 +291,7 @@ class CodeSyncCLI:
         self.config_dir = config_dir
         os.makedirs(self.config_dir, exist_ok=True)
         
+        # Load repositories from persistent storage
         self.repositories: Dict[str, CodeSyncRepository] = {}
         self._load_repositories()
     
@@ -318,23 +318,28 @@ class CodeSyncCLI:
     
     def create_repository(self, name: str, path: str) -> CodeSyncRepository:
         """Create a new repository with validation"""
+        # Validate repository name and path
         if not name:
             raise ValueError("Repository name cannot be empty!")
         
         if name in self.repositories:
             raise ValueError(f"Repository {name} already exists!")
         
+        # Resolve absolute path
         abs_path = os.path.abspath(path)
         
+        # Check if path exists, create if it doesn't
         if not os.path.exists(abs_path):
             os.makedirs(abs_path, exist_ok=True)
         
         if not os.path.isdir(abs_path):
             raise ValueError(f"Invalid repository path: {abs_path}")
         
+        # Create repository
         repo = CodeSyncRepository(name, abs_path)
         self.repositories[name] = repo
         
+        # Save repository configuration
         self._save_repositories()
         
         return repo
@@ -347,9 +352,10 @@ class CodeSyncCLI:
         
         results = []
         
+        # Walk through repository files
         for root, _, files in os.walk(repo.path):
             for file in files:
-                if file.endswith('.py'):  
+                if file.endswith('.py'):  # Focus on Python files
                     file_path = os.path.join(root, file)
                     review = repo.analyze_file(file_path)
                     if review:
@@ -367,16 +373,19 @@ class CodeSyncCLI:
         
         repo = self.repositories[repo_name]
         
+        # Optionally delete physical files
         if delete_files:
             try:
                 shutil.rmtree(repo.path)
             except Exception as e:
                 print(f"Error deleting repository files: {e}")
         
+        # Remove from managed repositories
         del self.repositories[repo_name]
         
+        # Update persistent storage
         self._save_repositories()
-
+    
     def interactive_menu(self):
         """Enhanced interactive CLI for CodeSync"""
         while True:
