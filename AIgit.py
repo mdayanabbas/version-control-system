@@ -6,9 +6,10 @@ import uuid
 import difflib
 import hashlib
 from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime
 import random
+import shutil
 
 class AICodeAnalyzer:
     """Advanced AI-powered code analysis and optimization engine"""
@@ -142,130 +143,41 @@ class CodeReview:
     optimization_suggestions: Dict[str, List[str]] = field(default_factory=dict)
     severity_score: float = 0.0
 
-class CodeSyncRepository:
-    """Advanced repository management with AI-powered insights"""
-    
-    def __init__(self, name: str, path: str):
-        self.name = name
-        self.path = path
-        self.reviews: List[CodeReview] = []
-        self.code_health_history: List[float] = []
-    
-    def analyze_file(self, file_path: str) -> CodeReview:
-        """Perform comprehensive code analysis on a file"""
-        try:
-            with open(file_path, 'r') as f:
-                code_content = f.read()
-            
-            # Perform AI-powered analysis
-            code_smells = AICodeAnalyzer.detect_code_smells(code_content)
-            optimizations = AICodeAnalyzer.suggest_optimizations(code_content)
-            
-            # Calculate severity score
-            severity = self._calculate_severity(code_smells)
-            
-            # Create code review
-            review = CodeReview(
-                code_snippet=code_content,
-                file_path=file_path,
-                analysis_results=code_smells,
-                optimization_suggestions=optimizations,
-                severity_score=severity
-            )
-            
-            self.reviews.append(review)
-            self.code_health_history.append(severity)
-            
-            return review
-        
-        except Exception as e:
-            print(f"Error analyzing file {file_path}: {e}")
-            return None
-    
-    def _calculate_severity(self, code_smells: Dict[str, List[str]]) -> float:
-        """Calculate severity score based on detected issues"""
-        severity_map = {
-            'complexity': 0.4,
-            'security': 0.3,
-            'performance': 0.2,
-            'best_practices': 0.1
-        }
-
-      
-        severity = 0.0
-        for category, issues in code_smells.items():
-            severity += len(issues) * severity_map.get(category, 0.1)
-        
-        return min(severity, 10.0)  # Cap at 10
-    
-    def generate_project_health_report(self) -> Dict[str, Any]:
-        """Generate comprehensive project health report"""
-        report = {
-            'total_reviews': len(self.reviews),
-            'average_severity': sum(self.code_health_history) / len(self.code_health_history) if self.code_health_history else 0,
-            'critical_files': [],
-            'optimization_opportunities': 0
-        }
-        
-        # Identify critical files
-        report['critical_files'] = [
-            review.file_path for review in self.reviews 
-            if review.severity_score > 5.0
-        ]
-        
-        # Count optimization opportunities
-        for review in self.reviews:
-            report['optimization_opportunities'] += sum(
-                len(suggestions) for suggestions in review.optimization_suggestions.values()
-            )
-        
-        return report
-
-class CodeSyncCLI:
-    """Command-line interface for CodeSync"""
-    
-    def __init__(self):
-        self.repositories: Dict[str, CodeSyncRepository] = {}
-    
-    def create_repository(self, name: str, path: str) -> CodeSyncRepository:
-        """Create a new repository"""
-        if name in self.repositories:
-            raise ValueError(f"Repository {name} already exists!")
-        
-        repo = CodeSyncRepository(name, path)
-        self.repositories[name] = repo
-        return repo
-    
-    def analyze_repository(self, repo_name: str, recursive: bool = True) -> Dict[str, Any]:
-        """Analyze entire repository or specific files"""
-        repo = self.repositories.get(repo_name)
-        if not repo:
-            raise ValueError(f"Repository {repo_name} not found!")
-        
-        results = []
-        
-        # Walk through repository files
-        for root, _, files in os.walk(repo.path):
-            for file in files:
-                if file.endswith('.py'):  # Focus on Python files
-                    file_path = os.path.join(root, file)
-                    review = repo.analyze_file(file_path)
-                    if review:
-                        results.append(review)
-        
+    def to_dict(self):
+        """Convert CodeReview to dictionary for serialization"""
         return {
-            'total_files_analyzed': len(results),
-            'project_report': repo.generate_project_health_report()
+            'id': self.id,
+            'timestamp': self.timestamp.isoformat(),
+            'code_snippet': self.code_snippet,
+            'file_path': self.file_path,
+            'analysis_results': self.analysis_results,
+            'optimization_suggestions': self.optimization_suggestions,
+            'severity_score': self.severity_score
         }
-    
+
+    @classmethod
+    def from_dict(cls, data):
+        """Create CodeReview from dictionary"""
+        review = cls()
+        review.id = data['id']
+        review.timestamp = datetime.fromisoformat(data['timestamp'])
+        review.code_snippet = data['code_snippet']
+        review.file_path = data['file_path']
+        review.analysis_results = data['analysis_results']
+        review.optimization_suggestions = data['optimization_suggestions']
+        review.severity_score = data['severity_score']
+        return review
+
     def interactive_menu(self):
-        """Interactive CLI for CodeSync"""
+        """Enhanced interactive CLI for CodeSync"""
         while True:
             print("\n--- CodeSync: AI-Powered Code Analysis ---")
             print("1. Create Repository")
-            print("2. Analyze Repository")
-            print("3. View Project Health Report")
-            print("4. Exit")
+            print("2. List Repositories")
+            print("3. Analyze Repository")
+            print("4. View Project Health Report")
+            print("5. Remove Repository")
+            print("6. Exit")
             
             choice = input("Enter your choice: ")
             
@@ -278,6 +190,14 @@ class CodeSyncCLI:
                 
                 elif choice == '2':
                     if not self.repositories:
+                        print("No repositories found.")
+                    else:
+                        print("\nCreated Repositories:")
+                        for name, repo in self.repositories.items():
+                            print(f"- {name} (Path: {repo.path})")
+                
+                elif choice == '3':
+                    if not self.repositories:
                         print("No repositories. Create one first!")
                         continue
                     
@@ -289,8 +209,16 @@ class CodeSyncCLI:
                     result = self.analyze_repository(repo_name)
                     print("\nAnalysis Results:")
                     print(f"Total Files Analyzed: {result['total_files_analyzed']}")
+                    print("\nDetailed Project Report:")
+                    report = result['project_report']
+                    print(f"Total Code Reviews: {report['total_reviews']}")
+                    print(f"Average Severity Score: {report['average_severity']:.2f}")
+                    print("Critical Files:")
+                    for file in report['critical_files']:
+                        print(f"  - {file}")
+                    print(f"Optimization Opportunities: {report['optimization_opportunities']}")
                 
-                elif choice == '3':
+                elif choice == '4':
                     if not self.repositories:
                         print("No repositories. Create one first!")
                         continue
@@ -310,7 +238,25 @@ class CodeSyncCLI:
                         print(f"  - {file}")
                     print(f"Optimization Opportunities: {report['optimization_opportunities']}")
                 
-                elif choice == '4':
+                elif choice == '5':
+                    if not self.repositories:
+                        print("No repositories to remove!")
+                        continue
+                    
+                    print("Available Repositories:")
+                    for repo_name in self.repositories:
+                        print(repo_name)
+                    
+                    repo_name = input("Enter repository name to remove: ")
+                    confirm = input(f"Are you sure you want to remove repository '{repo_name}'? (y/N): ")
+                    
+                    if confirm.lower() == 'y':
+                        delete_files = input("Do you want to delete repository files? (y/N): ").lower() == 'y'
+                        self.remove_repository(repo_name, delete_files)
+                        print(f"Repository '{repo_name}' removed successfully!")
+                
+                elif choice == '6':
+                    print("Exiting CodeSync. Goodbye!")
                     break
                 
                 else:
@@ -320,6 +266,7 @@ class CodeSyncCLI:
                 print(f"Error: {e}")
 
 def main():
+    print("Welcome to CodeSync: AI-Powered Code Analysis Tool")
     cli = CodeSyncCLI()
     cli.interactive_menu()
 
