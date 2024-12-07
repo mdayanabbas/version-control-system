@@ -281,6 +281,112 @@ class CodeSyncRepository:
         
         return report
 
+class CodeSyncCLI:
+    """Command-line interface for CodeSync with persistent storage"""
+    
+    def __init__(self, config_dir=None):
+        # Use a default config directory if not specified
+        if config_dir is None:
+            config_dir = os.path.join(os.path.expanduser('~'), '.codesync')
+        
+        self.config_dir = config_dir
+        os.makedirs(self.config_dir, exist_ok=True)
+        
+        # Load repositories from persistent storage
+        self.repositories: Dict[str, CodeSyncRepository] = {}
+        self._load_repositories()
+    
+    def _load_repositories(self):
+        """Load existing repositories from config"""
+        repos_file = os.path.join(self.config_dir, 'repositories.json')
+        try:
+            if os.path.exists(repos_file):
+                with open(repos_file, 'r') as f:
+                    repo_data = json.load(f)
+                    for name, path in repo_data.items():
+                        self.repositories[name] = CodeSyncRepository(name, path)
+        except Exception as e:
+            print(f"Error loading repositories: {e}")
+    
+    def _save_repositories(self):
+        """Save repositories to persistent storage"""
+        repos_file = os.path.join(self.config_dir, 'repositories.json')
+        try:
+            with open(repos_file, 'w') as f:
+                json.dump({repo.name: repo.path for repo in self.repositories.values()}, f, indent=2)
+        except Exception as e:
+            print(f"Error saving repositories: {e}")
+    
+    def create_repository(self, name: str, path: str) -> CodeSyncRepository:
+        """Create a new repository with validation"""
+        # Validate repository name and path
+        if not name:
+            raise ValueError("Repository name cannot be empty!")
+        
+        if name in self.repositories:
+            raise ValueError(f"Repository {name} already exists!")
+        
+        # Resolve absolute path
+        abs_path = os.path.abspath(path)
+        
+        # Check if path exists, create if it doesn't
+        if not os.path.exists(abs_path):
+            os.makedirs(abs_path, exist_ok=True)
+        
+        if not os.path.isdir(abs_path):
+            raise ValueError(f"Invalid repository path: {abs_path}")
+        
+        # Create repository
+        repo = CodeSyncRepository(name, abs_path)
+        self.repositories[name] = repo
+        
+        # Save repository configuration
+        self._save_repositories()
+        
+        return repo
+    
+    def analyze_repository(self, repo_name: str, recursive: bool = True) -> Dict[str, Any]:
+        """Analyze entire repository or specific files"""
+        repo = self.repositories.get(repo_name)
+        if not repo:
+            raise ValueError(f"Repository {repo_name} not found!")
+        
+        results = []
+        
+        # Walk through repository files
+        for root, _, files in os.walk(repo.path):
+            for file in files:
+                if file.endswith('.py'):  # Focus on Python files
+                    file_path = os.path.join(root, file)
+                    review = repo.analyze_file(file_path)
+                    if review:
+                        results.append(review)
+        
+        return {
+            'total_files_analyzed': len(results),
+            'project_report': repo.generate_project_health_report()
+        }
+    
+    def remove_repository(self, repo_name: str, delete_files: bool = False):
+        """Remove a repository from CodeSync management"""
+        if repo_name not in self.repositories:
+            raise ValueError(f"Repository {repo_name} not found!")
+        
+        repo = self.repositories[repo_name]
+        
+        # Optionally delete physical files
+        if delete_files:
+            try:
+                shutil.rmtree(repo.path)
+            except Exception as e:
+                print(f"Error deleting repository files: {e}")
+        
+        # Remove from managed repositories
+        del self.repositories[repo_name]
+        
+        # Update persistent storage
+        self._save_repositories()
+        
     def interactive_menu(self):
         """Enhanced interactive CLI for CodeSync"""
         while True:
