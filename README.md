@@ -1,4 +1,3 @@
-# version-control-system
 # CodeSync: AI-Powered Code Analysis Tool
 
 ## Overview
@@ -36,7 +35,7 @@ CodeSync is an advanced Python-based code analysis and optimization tool that pr
 3. Run the script directly
 
 ```bash
-python codesync.py
+python AIgit.py
 ```
 
 ## Usage
@@ -102,9 +101,6 @@ Identifies:
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
-
-[Specify your license here]
 
 ## Disclaimer
 
